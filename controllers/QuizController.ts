@@ -5,10 +5,11 @@ import { ObjectId } from "https://deno.land/x/mongo@v0.6.0/mod.ts";
 const Question = db.collection("questions");
 const Quiz = db.collection("quizzes");
 
-export default {
-  async createQuizQuestions(ctx: any) {
-    const values = await validation.validate(ctx);
-    const { userId } = values;
+export const createQuizQuestions = async ({ request, response }: any) => {
+  const reqBody = await request.body();
+  const { value } = reqBody;
+  const { userId } = value;
+  try {
     const result = await Question.find();
     let allQuestions = [];
     let pitanja1 = [],
@@ -46,7 +47,7 @@ export default {
       questions: [...questionIds],
     });
 
-    ctx.response.body = {
+    response.body = {
       quiz: newQuiz._id,
       firstQuestion: {
         id: allQuestions[0]._id,
@@ -58,177 +59,171 @@ export default {
         points: allQuestions[0].points,
       },
     };
-  },
-  async startQuiz(ctx: any) {
-    const values = await validation.validate(ctx);
-    if (!values) {
-      return;
+
+    return response;
+  } catch (error) {
+    response.body.message = error;
+    return response;
+  }
+};
+
+export const startQuiz = async ({ request, response, params }: any) => {
+  const reqBody = await request.body();
+  // const reqParams = await request.params();
+  const { value: values } = reqBody;
+
+  const { quizId } = params;
+  const { userId, answer: ans } = values;
+  const continuing = values.continuing ? values.continuing : false;
+
+  const quiz: any = await Quiz.aggregate([
+    {
+      $match: {
+        _id: quizId,
+        createdAt: { $gt: new Date(Date.now() - 30 * 60 * 1000) },
+      },
+    },
+    {
+      $project: {
+        createdAt: 1,
+        updatedAt: 1,
+        questions: 1,
+        takenBy: 1,
+        score: 1,
+        active: 1,
+      },
+    },
+    {
+      $lookup: {
+        from: "questions",
+        localField: "_id.questions.question",
+        foreignField: "_id",
+        as: "question",
+      },
+    },
+  ]);
+
+  if (!quiz) {
+    response.statusCode = 403;
+    response.body = {
+      message:
+        "Predviđeno vrijeme za igranje kviza je isteklo. Ostvareni rezultat biće sačuvan. Počnite ponovo.",
+    };
+    return;
+  } else if (!quiz.active) {
+    response.statusCode = 403;
+    response.body = {
+      message: "Kviz je završen. Počnite ponovo.",
+    };
+    return;
+  } else if (quiz.active && continuing) {
+    const q = quiz.questions.find(
+      (question: any) => !question.isAnswered && !question.isAnsweredCorrectly
+    );
+    const mappedQuestions = quiz.questions.map((q: any) => q.question._id);
+    const ordinalNumberOfQuestion = mappedQuestions.indexOf(q.question._id) + 1;
+    let answers = [
+      q.question.correct,
+      q.question.answer1,
+      q.question.answer2,
+      q.question.answer3,
+    ];
+    answers = shuffle(answers);
+
+    response.body = {
+      timeRemaining: Math.floor(
+        (quiz.createdAt - Number(new Date(Date.now() - 30 * 60 * 1000))) / 1000
+      ),
+      question: {
+        id: q.question._id,
+        text: q.question.text,
+        answer0: answers[0],
+        answer1: answers[1],
+        answer2: answers[2],
+        answer3: answers[3],
+        points: q.question.points,
+        num: ordinalNumberOfQuestion,
+      },
+      score: quiz.score,
+    };
+  } else {
+    let questions = quiz.questions.filter(
+      (question: any) => question.isAnswered === false
+    );
+
+    let correct = ans === questions[0].question.correct;
+
+    quiz.score = correct
+      ? quiz.score + questions[0].question.points
+      : quiz.score;
+    quiz.questions[
+      quiz.questions.indexOf(questions[0])
+    ].isAnsweredCorrectly = correct;
+    quiz.questions[quiz.questions.indexOf(questions[0])].isAnswered = true;
+
+    const question = await Question.findOne({ _id: questions[0].question });
+    if (correct) {
+      question.answeredCorrectly = question.answeredCorrectly + 1;
+    } else {
+      question.answeredIncorrectly = question.answeredIncorrectly + 1;
     }
-    const { quizId } = ctx.params;
-    const { userId } = values;
-    const ans = values.answer;
-    const continuing = values.continuing ? values.continuing : false;
+    Question.updateOne(
+      { _id: question._id },
+      {
+        $set: {
+          answeredCorrectly: question.answeredCorrectly,
+          answeredIncorrectly: question.answeredIncorrectly,
+        },
+      }
+    );
 
-    // Quiz.findOne({ _id: quizId, createdAt: {$gt: new Date(Date.now() - 30 * 60 * 1000) } })
-    //   .populate({
-    //     path: "questions.question",
-    //     model: "Question",
-    //   })
-    const quiz: any = await Quiz.aggregate([
-      {
-        $match: {
-          _id: quizId,
-          createdAt: { $gt: new Date(Date.now() - 30 * 60 * 1000) },
-        },
-      },
-      {
-        $project: {
-          createdAt: 1,
-          updatedAt: 1,
-          questions: 1,
-          takenBy: 1,
-          score: 1,
-          active: 1,
-        },
-      },
-      {
-        $lookup: {
-          from: "questions",
-          localField: "_id.questions.question",
-          foreignField: "_id",
-          as: "question",
-        },
-      },
-    ]);
+    const updatedQuiz = await Quiz.updateOne({ _id: quiz._id }, { $set: quiz });
 
-    if (!quiz) {
-      ctx.statusCode = 403;
-      ctx.response.body = {
-        errors: {
-          message:
-            "Predviđeno vrijeme za igranje kviza je isteklo. Ostvareni rezultat biće sačuvan. Počnite ponovo.",
-        },
-      };
-      return;
-    } else if (!quiz.active) {
-      ctx.statusCode = 403;
-      ctx.response.body = {
-        errors: { message: "Kviz je završen. Počnite ponovo." },
-      };
-      return;
-    } else if (quiz.active && continuing) {
-      const q = quiz.questions.find(
-        (question: any) => !question.isAnswered && !question.isAnsweredCorrectly
-      );
-      const mappedQuestions = quiz.questions.map((q: any) => q.question._id);
-      const ordinalNumberOfQuestion =
-        mappedQuestions.indexOf(q.question._id) + 1;
+    if (questions[1]) {
       let answers = [
-        q.question.correct,
-        q.question.answer1,
-        q.question.answer2,
-        q.question.answer3,
+        questions[1].question.correct,
+        questions[1].question.answer1,
+        questions[1].question.answer2,
+        questions[1].question.answer3,
       ];
       answers = shuffle(answers);
-
-      ctx.response.body = {
-        timeRemaining: Math.floor(
-          (quiz.createdAt - Number(new Date(Date.now() - 30 * 60 * 1000))) / 1000
-        ),
+      response.body = {
         question: {
-          id: q.question._id,
-          text: q.question.text,
+          id: questions[1].question._id,
+          text: questions[1].question.text,
           answer0: answers[0],
           answer1: answers[1],
           answer2: answers[2],
           answer3: answers[3],
-          points: q.question.points,
-          num: ordinalNumberOfQuestion,
+          points: questions[1].question.points,
+        },
+        previousQuestion: {
+          correctAnswer: questions[0].question.correct,
+          link: questions[0].question.link,
         },
         score: quiz.score,
+        incorrect: !correct,
+        gameover: false,
       };
     } else {
-      let questions = quiz.questions.filter(
-        (question: any) => question.isAnswered === false
-      );
-
-      let correct = ans === questions[0].question.correct;
-
-      quiz.score = correct
-        ? quiz.score + questions[0].question.points
-        : quiz.score;
-      quiz.questions[
-        quiz.questions.indexOf(questions[0])
-      ].isAnsweredCorrectly = correct;
-      quiz.questions[quiz.questions.indexOf(questions[0])].isAnswered = true;
-
-      const question = await Question.findOne({ _id: questions[0].question });
-      if (correct) {
-        question.answeredCorrectly = question.answeredCorrectly + 1;
-      } else {
-        question.answeredIncorrectly = question.answeredIncorrectly + 1;
-      }
-      Question.updateOne(
-        { _id: question._id },
-        {
-          $set: {
-            answeredCorrectly: question.answeredCorrectly,
-            answeredIncorrectly: question.answeredIncorrectly,
-          },
-        }
-      );
-
+      quiz.active = false;
       const updatedQuiz = await Quiz.updateOne(
         { _id: quiz._id },
         { $set: quiz }
       );
-
-      if (questions[1]) {
-        let answers = [
-          questions[1].question.correct,
-          questions[1].question.answer1,
-          questions[1].question.answer2,
-          questions[1].question.answer3,
-        ];
-        answers = shuffle(answers);
-        ctx.response.body = {
-          question: {
-            id: questions[1].question._id,
-            text: questions[1].question.text,
-            answer0: answers[0],
-            answer1: answers[1],
-            answer2: answers[2],
-            answer3: answers[3],
-            points: questions[1].question.points,
-          },
-          previousQuestion: {
-            correctAnswer: questions[0].question.correct,
-            link: questions[0].question.link,
-          },
-          score: quiz.score,
-          incorrect: !correct,
-          gameover: false,
-        };
-      } else {
-        quiz.active = false;
-        const updatedQuiz = await Quiz.updateOne(
-          { _id: quiz._id },
-          { $set: quiz }
-        );
-        ctx.response.body = {
-          message: "Stigli ste do kraja kviza. Čestitamo!",
-          finished: true,
-          gameover: true,
-          score: quiz.score,
-          incorrect: !correct,
-          previousQuestion: {
-            correctAnswer: questions[0].question.correct,
-            link: questions[0].question.link,
-          },
-        };
-      }
+      response.body = {
+        message: "Stigli ste do kraja kviza. Čestitamo!",
+        finished: true,
+        gameover: true,
+        score: quiz.score,
+        incorrect: !correct,
+        previousQuestion: {
+          correctAnswer: questions[0].question.correct,
+          link: questions[0].question.link,
+        },
+      };
     }
-  },
+  }
 };
 
 // exports.deleteUserGames = (req, res, next) => {

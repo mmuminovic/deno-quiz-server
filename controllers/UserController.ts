@@ -6,14 +6,13 @@ const user = db.collection("users");
 
 export default {
   async index(ctx: any) {
+    console.log("haha")
     const data = await user.find();
     ctx.response.body = data;
   },
   async show(ctx: any) {
     try {
-      const data = await user.findOne(
-        { _id: ObjectId(ctx.params.id) },
-      );
+      const data = await user.findOne({ _id: ObjectId(ctx.params.id) });
       ctx.response.body = data;
     } catch (e) {
       ctx.response.status = 404;
@@ -39,10 +38,7 @@ export default {
         password: value.password,
       };
       try {
-        await user.updateOne(
-          { _id: ObjectId(ctx.params.id) },
-          { $set: data },
-        );
+        await user.updateOne({ _id: ObjectId(ctx.params.id) }, { $set: data });
         ctx.response.status = 200;
         ctx.response.body = { message: "updated" };
       } catch (e) {
@@ -59,5 +55,28 @@ export default {
       ctx.response.status = 404;
       ctx.response.body = { error: "User does't exists in our database." };
     }
+  },
+  async signup(ctx: any) {
+    const { request, response } = ctx
+    const {email, password, fullName} = request.body;
+    console.log(request)
+    let isAdmin = false;
+    // if (ctx.body.isAdmin === `${process.env.ADMIN_KEY}`) {
+    //   isAdmin = true;
+    // }
+    const hashedPw = await hash.bcrypt(password);
+    const newUser = await user.insertOne({
+      email: email,
+      password: hashedPw,
+      fullName: fullName,
+      isAdmin: isAdmin,
+    });
+    // return user.save();
+    ctx.statusCode = 201;
+    ctx.response = { message: "User created!", userId: newUser._id };
+
+    // if (!err.statusCode) {
+    //   err.statusCode = 500;
+    // }
   },
 };

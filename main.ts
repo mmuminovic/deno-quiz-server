@@ -13,7 +13,7 @@ const PORT = +env.APP_PORT || 4000;
 
 app.use(oakCors());
 app.use(router.routes());
-app.use(protectedRouter.routes());
+// app.use(protectedRouter.routes());
 app.use(notFound);
 
 console.log(`server is started at ${HOST}:${PORT}`);
