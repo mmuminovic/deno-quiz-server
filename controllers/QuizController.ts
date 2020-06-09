@@ -226,522 +226,527 @@ export const startQuiz = async ({ request, response, params }: any) => {
   }
 };
 
-// exports.deleteUserGames = (req, res, next) => {
-//   const userId = req.params.userId;
-//   Quiz.deleteMany({ takenBy: userId }).then((result) => {
-//     res.json({ message: "Delete successful" });
-//   });
-// };
+export const getMyScore = async ({ request, response, params }) => {
+  const { userId } = params;
+  const date = new Date();
+  const firstDay = new Date(date.getFullYear(), date.getMonth(), 1);
+  const lastDay = new Date(date.getFullYear(), date.getMonth() + 1, 0);
+  try {
+    const result = await Quiz.aggregate([
+      {
+        $match: {
+          takenBy: userId,
+          score: { $gt: 0 },
+          updatedAt: { $gt: firstDay, $lt: lastDay },
+        },
+      },
+      {
+        $sort: { score: -1, updatedAt: -1 },
+      },
+      {
+        $project: {
+          createdAt: 1,
+          updatedAt: 1,
+          score: 1,
+          takenBy: 1,
+          duration: { $subtract: ["$updatedAt", "$createdAt"] },
+        },
+      },
+      // {
+      //     $group: { _id: { takenBy: "$takenBy" }, score: { $max: "$score" }, duration: { $min: "$duration" } }
+      // },
+      // {
+      //     $lookup: { from: 'users', localField: '_id.takenBy', foreignField: '_id', as: 'user' }
+      // },
+      {
+        $sort: { score: -1, duration: 1 },
+      },
+    ]);
+    console.log(result);
+    const ranking = result.map((obj, i) => {
+      let minutes = Math.floor(obj.duration / 60000);
+      let seconds = ((obj.duration % 60000) / 1000).toFixed(0);
+      if (seconds.length === 1) {
+        seconds = `0${seconds}`;
+      }
+      const data = {
+        score: obj.score,
+        duration: `${minutes}:${seconds}`,
+      };
+      return data;
+    });
 
-// exports.getMyScore = (req, res, next) => {
-//   const userId = mongoose.Types.ObjectId(req.params.userId);
-//   const date = new Date();
-//   const firstDay = new Date(date.getFullYear(), date.getMonth(), 1);
-//   const lastDay = new Date(date.getFullYear(), date.getMonth() + 1, 0);
+    // The best scores
+    const bestScores = await Quiz.aggregate([
+      {
+        $match: { takenBy: userId, score: { $gt: 0 } },
+      },
+      {
+        $sort: { score: -1, updatedAt: -1 },
+      },
+      {
+        $project: {
+          createdAt: 1,
+          updatedAt: 1,
+          score: 1,
+          takenBy: 1,
+          duration: { $subtract: ["$updatedAt", "$createdAt"] },
+        },
+      },
+      // {
+      //     $group: { _id: { takenBy: "$takenBy" }, score: { $max: "$score" }, duration: { $min: "$duration" } }
+      // },
+      // {
+      //     $lookup: { from: 'users', localField: '_id.takenBy', foreignField: '_id', as: 'user' }
+      // },
+      {
+        $sort: { score: -1, duration: 1 },
+      },
+    ]);
 
-//   Quiz.aggregate(
-//     [
-//       {
-//         $match: {
-//           takenBy: userId,
-//           score: { $gt: 0 },
-//           updatedAt: { $gt: firstDay, $lt: lastDay },
-//         },
-//       },
-//       {
-//         $sort: { score: -1, updatedAt: -1 },
-//       },
-//       {
-//         $project: {
-//           createdAt: 1,
-//           updatedAt: 1,
-//           score: 1,
-//           takenBy: 1,
-//           duration: { $subtract: ["$updatedAt", "$createdAt"] },
-//         },
-//       },
-//       // {
-//       //     $group: { _id: { takenBy: "$takenBy" }, score: { $max: "$score" }, duration: { $min: "$duration" } }
-//       // },
-//       // {
-//       //     $lookup: { from: 'users', localField: '_id.takenBy', foreignField: '_id', as: 'user' }
-//       // },
-//       {
-//         $sort: { score: -1, duration: 1 },
-//       },
-//     ],
-//     (err, result) => {
-//       const ranking = result.map((obj, i) => {
-//         let minutes = Math.floor(obj.duration / 60000);
-//         let seconds = ((obj.duration % 60000) / 1000).toFixed(0);
-//         if (seconds.length === 1) {
-//           seconds = `0${seconds}`;
-//         }
-//         const data = {
-//           score: obj.score,
-//           duration: `${minutes}:${seconds}`,
-//         };
-//         return data;
-//       });
-//       res.json(ranking[0]);
-//     }
-//   );
-// };
+    const topRecords = bestScores.map((obj, i) => {
+      let minutes = Math.floor(obj.duration / 60000);
+      let seconds = ((obj.duration % 60000) / 1000).toFixed(0);
+      if (seconds.length === 1) {
+        seconds = `0${seconds}`;
+      }
+      const data = {
+        score: obj.score,
+        duration: `${minutes}:${seconds}`,
+      };
+      return data;
+    });
 
-// exports.getMyBestScore = (req, res, next) => {
-//   const userId = mongoose.Types.ObjectId(req.params.userId);
+    // Last month score
+    const firstDayOfLastMonth = new Date(
+      date.getFullYear(),
+      date.getMonth() - 1,
+      1
+    );
+    const lastDayOfLastMonth = new Date(date.getFullYear(), date.getMonth(), 0);
 
-//   Quiz.aggregate(
-//     [
-//       {
-//         $match: { takenBy: userId, score: { $gt: 0 } },
-//       },
-//       {
-//         $sort: { score: -1, updatedAt: -1 },
-//       },
-//       {
-//         $project: {
-//           createdAt: 1,
-//           updatedAt: 1,
-//           score: 1,
-//           takenBy: 1,
-//           duration: { $subtract: ["$updatedAt", "$createdAt"] },
-//         },
-//       },
-//       // {
-//       //     $group: { _id: { takenBy: "$takenBy" }, score: { $max: "$score" }, duration: { $min: "$duration" } }
-//       // },
-//       // {
-//       //     $lookup: { from: 'users', localField: '_id.takenBy', foreignField: '_id', as: 'user' }
-//       // },
-//       {
-//         $sort: { score: -1, duration: 1 },
-//       },
-//     ],
-//     (err, result) => {
-//       const ranking = result.map((obj, i) => {
-//         let minutes = Math.floor(obj.duration / 60000);
-//         let seconds = ((obj.duration % 60000) / 1000).toFixed(0);
-//         if (seconds.length === 1) {
-//           seconds = `0${seconds}`;
-//         }
-//         const data = {
-//           score: obj.score,
-//           duration: `${minutes}:${seconds}`,
-//         };
-//         return data;
-//       });
-//       res.json(ranking[0]);
-//     }
-//   );
-// };
+    const lastMonthScores = await Quiz.aggregate([
+      {
+        $match: {
+          takenBy: userId,
+          score: { $gt: 0 },
+          updatedAt: { $gt: firstDayOfLastMonth, $lt: lastDayOfLastMonth },
+        },
+      },
+      {
+        $sort: { score: -1, updatedAt: -1 },
+      },
+      {
+        $project: {
+          createdAt: 1,
+          updatedAt: 1,
+          score: 1,
+          takenBy: 1,
+          duration: { $subtract: ["$updatedAt", "$createdAt"] },
+        },
+      },
+      // {
+      //     $group: { _id: { takenBy: "$takenBy" }, score: { $max: "$score" }, duration: { $min: "$duration" } }
+      // },
+      // {
+      //     $lookup: { from: 'users', localField: '_id.takenBy', foreignField: '_id', as: 'user' }
+      // },
+      {
+        $sort: { score: -1, duration: 1 },
+      },
+    ]);
 
-// exports.scoreLastMonth = (req, res, next) => {
-//   const userId = mongoose.Types.ObjectId(req.params.userId);
-//   const date = new Date();
-//   const firstDay = new Date(date.getFullYear(), date.getMonth() - 1, 1);
-//   const lastDay = new Date(date.getFullYear(), date.getMonth(), 0);
+    let rankingLastMonth;
+    if (lastMonthScores.length !== 0) {
+      rankingLastMonth = lastMonthScores.map((obj, i) => {
+        let minutes = Math.floor(obj.duration / 60000);
+        let seconds = ((obj.duration % 60000) / 1000).toFixed(0);
+        if (seconds.length === 1) {
+          seconds = `0${seconds}`;
+        }
+        const data = {
+          score: obj.score,
+          duration: `${minutes}:${seconds}`,
+        };
+        return data;
+      });
+    } else {
+      rankingLastMonth = [
+        {
+          score: 0,
+          duration: `0:00`,
+        },
+      ];
+    }
 
-//   Quiz.aggregate(
-//     [
-//       {
-//         $match: {
-//           takenBy: userId,
-//           score: { $gt: 0 },
-//           updatedAt: { $gt: firstDay, $lt: lastDay },
-//         },
-//       },
-//       {
-//         $sort: { score: -1, updatedAt: -1 },
-//       },
-//       {
-//         $project: {
-//           createdAt: 1,
-//           updatedAt: 1,
-//           score: 1,
-//           takenBy: 1,
-//           duration: { $subtract: ["$updatedAt", "$createdAt"] },
-//         },
-//       },
-//       // {
-//       //     $group: { _id: { takenBy: "$takenBy" }, score: { $max: "$score" }, duration: { $min: "$duration" } }
-//       // },
-//       // {
-//       //     $lookup: { from: 'users', localField: '_id.takenBy', foreignField: '_id', as: 'user' }
-//       // },
-//       {
-//         $sort: { score: -1, duration: 1 },
-//       },
-//     ],
-//     (err, result) => {
-//       if (result.length !== 0) {
-//         const ranking = result.map((obj, i) => {
-//           let minutes = Math.floor(obj.duration / 60000);
-//           let seconds = ((obj.duration % 60000) / 1000).toFixed(0);
-//           if (seconds.length === 1) {
-//             seconds = `0${seconds}`;
-//           }
-//           const data = {
-//             score: obj.score,
-//             duration: `${minutes}:${seconds}`,
-//           };
-//           return data;
-//         });
-//         res.json(ranking[0]);
-//       } else {
-//         res.json({
-//           score: 0,
-//           duration: `0:00`,
-//         });
-//       }
-//     }
-//   );
-// };
+    response.body = {
+      score: ranking[0],
+      theBestScore: topRecords[0],
+      scoreLastMonth: rankingLastMonth[0],
+    };
+    return response;
+  } catch (error) {
+    console.log(error);
+    response.statusCode = 500;
+    response.body = {
+      message: error,
+    };
+    throw response;
+  }
+};
 
 // // RANKING LIST
-// exports.getRankingList = (req, res, next) => {
-//   const date = new Date();
-//   let firstDay = new Date(date.getFullYear(), date.getMonth(), 1);
-//   let lastDay = new Date(date.getFullYear(), date.getMonth(), 15);
-//   if (Date.now() > lastDay) {
-//     firstDay = new Date(date.getFullYear(), date.getMonth(), 15);
-//     lastDay = new Date(date.getFullYear(), date.getMonth() + 1, 1);
-//   }
-//   const months = [
-//     "Jan",
-//     "Feb",
-//     "Mar",
-//     "Apr",
-//     "May",
-//     "Jun",
-//     "Jul",
-//     "Aug",
-//     "Sep",
-//     "Oct",
-//     "Nov",
-//     "Dec",
-//   ];
-//   const [year1, year2] = [firstDay.getFullYear(), lastDay.getFullYear()];
-//   const [month1, month2] = [
-//     months[firstDay.getMonth()],
-//     months[lastDay.getMonth()],
-//   ];
-//   const [day1, day2] = [firstDay.getDate(), lastDay.getDate()];
-//   const time1 = day1 + " " + month1 + " " + year1;
-//   const time2 = day2 + " " + month2 + " " + year2;
+export const getRankingList = async ({ response }) => {
+  const date = new Date();
+  let firstDay = new Date(date.getFullYear(), date.getMonth(), 1);
+  let lastDay = new Date(date.getFullYear(), date.getMonth(), 15);
+  if (Date.now() > lastDay) {
+    firstDay = new Date(date.getFullYear(), date.getMonth(), 15);
+    lastDay = new Date(date.getFullYear(), date.getMonth() + 1, 1);
+  }
+  const months = [
+    "Jan",
+    "Feb",
+    "Mar",
+    "Apr",
+    "May",
+    "Jun",
+    "Jul",
+    "Aug",
+    "Sep",
+    "Oct",
+    "Nov",
+    "Dec",
+  ];
+  const [year1, year2] = [firstDay.getFullYear(), lastDay.getFullYear()];
+  const [month1, month2] = [
+    months[firstDay.getMonth()],
+    months[lastDay.getMonth()],
+  ];
+  const [day1, day2] = [firstDay.getDate(), lastDay.getDate()];
+  const time1 = day1 + " " + month1 + " " + year1;
+  const time2 = day2 + " " + month2 + " " + year2;
 
-//   const rankingListTitle = `${time1} - ${time2}`;
+  const rankingListTitle = `${time1} - ${time2}`;
 
-//   Quiz.aggregate(
-//     [
-//       {
-//         $match: {
-//           score: { $gt: 0 },
-//           updatedAt: { $gte: firstDay, $lt: lastDay },
-//         },
-//       },
-//       {
-//         $project: {
-//           createdAt: 1,
-//           updatedAt: 1,
-//           score: 1,
-//           takenBy: 1,
-//           duration: { $subtract: ["$updatedAt", "$createdAt"] },
-//         },
-//       },
-//       {
-//         $sort: { score: -1, duration: 1 },
-//       },
-//       {
-//         $group: {
-//           _id: { takenBy: "$takenBy" },
-//           score: { $max: "$score" },
-//           duration: { $first: "$duration" },
-//         },
-//       },
-//       {
-//         $lookup: {
-//           from: "users",
-//           localField: "_id.takenBy",
-//           foreignField: "_id",
-//           as: "user",
-//         },
-//       },
-//       {
-//         $sort: { score: -1, duration: 1 },
-//       },
-//     ],
-//     (err, result) => {
-//       let rankingList = [];
-//       result.forEach((obj) => {
-//         if (!obj.user[0].isWinner) {
-//           let minutes = Math.floor(obj.duration / 60000);
-//           let seconds = ((obj.duration % 60000) / 1000).toFixed(0);
-//           if (seconds.length === 1) {
-//             seconds = `0${seconds}`;
-//           }
-//           const data = {
-//             userId: obj.user[0]._id,
-//             fullName: obj.user[0].fullName,
-//             score: obj.score,
-//             duration: `${minutes}:${seconds}`,
-//           };
-//           rankingList.push(data);
-//         }
-//       });
-//       res.json({
-//         rankingList: rankingList.slice(0, 20),
-//         rankingListTitle: rankingListTitle,
-//       });
-//       // res.json(result);
-//     }
-//   );
-// };
+  const result = await Quiz.aggregate([
+    {
+      $match: {
+        score: { $gt: 0 },
+        updatedAt: { $gte: firstDay, $lt: lastDay },
+      },
+    },
+    {
+      $project: {
+        createdAt: 1,
+        updatedAt: 1,
+        score: 1,
+        takenBy: 1,
+        duration: { $subtract: ["$updatedAt", "$createdAt"] },
+      },
+    },
+    {
+      $sort: { score: -1, duration: 1 },
+    },
+    {
+      $group: {
+        _id: { takenBy: "$takenBy" },
+        score: { $max: "$score" },
+        duration: { $first: "$duration" },
+      },
+    },
+    {
+      $lookup: {
+        from: "users",
+        localField: "_id.takenBy",
+        foreignField: "_id",
+        as: "user",
+      },
+    },
+    {
+      $sort: { score: -1, duration: 1 },
+    },
+  ]);
 
-// exports.getBestPlayerToday = (req, res, next) => {
-//   const today = new Date();
-//   today.setHours(0);
-//   today.setMinutes(0);
-//   today.setSeconds(0);
-//   const tomorrow = new Date(today);
-//   tomorrow.setDate(tomorrow.getDate() + 1);
-//   tomorrow.setHours(0);
-//   tomorrow.setMinutes(0);
-//   tomorrow.setSeconds(0);
+  let rankingList = [];
+  result.forEach((obj) => {
+    if (!obj.user[0].isWinner) {
+      let minutes = Math.floor(obj.duration / 60000);
+      let seconds = ((obj.duration % 60000) / 1000).toFixed(0);
+      if (seconds.length === 1) {
+        seconds = `0${seconds}`;
+      }
+      const data = {
+        userId: obj.user[0]._id,
+        fullName: obj.user[0].fullName,
+        score: obj.score,
+        duration: `${minutes}:${seconds}`,
+      };
+      rankingList.push(data);
+    }
+  });
 
-//   Quiz.aggregate(
-//     [
-//       {
-//         $match: {
-//           score: { $gt: 0 },
-//           updatedAt: { $gte: today, $lt: tomorrow },
-//         },
-//       },
-//       {
-//         $project: {
-//           createdAt: 1,
-//           updatedAt: 1,
-//           score: 1,
-//           takenBy: 1,
-//           duration: { $subtract: ["$updatedAt", "$createdAt"] },
-//         },
-//       },
-//       {
-//         $sort: { score: -1, duration: 1 },
-//       },
-//       {
-//         $group: {
-//           _id: { takenBy: "$takenBy" },
-//           score: { $max: "$score" },
-//           duration: { $first: "$duration" },
-//         },
-//       },
-//       {
-//         $lookup: {
-//           from: "users",
-//           localField: "_id.takenBy",
-//           foreignField: "_id",
-//           as: "user",
-//         },
-//       },
-//       {
-//         $sort: { score: -1, duration: 1 },
-//       },
-//     ],
-//     (err, result) => {
-//       const ranking = result.map((obj, i) => {
-//         let minutes = Math.floor(obj.duration / 60000);
-//         let seconds = ((obj.duration % 60000) / 1000).toFixed(0);
-//         if (seconds.length === 1) {
-//           seconds = `0${seconds}`;
-//         }
-//         const data = {
-//           fullName: obj.user[0].fullName,
-//           score: obj.score,
-//           duration: `${minutes}:${seconds}`,
-//         };
-//         return data;
-//       });
-//       res.json(ranking[0]);
-//     }
-//   );
-// };
+  // Ranking list of last month
+  let rankingLastMonth;
+  try {
+    const date = new Date();
+    let firstDay = new Date(date.getFullYear(), date.getMonth(), 1);
+    let lastDay = new Date(date.getFullYear(), date.getMonth(), 15);
+    if (Date.now() < lastDay) {
+      firstDay = new Date(date.getFullYear(), date.getMonth() - 1, 15);
+      lastDay = new Date(date.getFullYear(), date.getMonth(), 1);
+    }
 
-// exports.getLastMonthList = (req, res, next) => {
-//   const date = new Date();
-//   let firstDay = new Date(date.getFullYear(), date.getMonth(), 1);
-//   let lastDay = new Date(date.getFullYear(), date.getMonth(), 15);
-//   if (Date.now() < lastDay) {
-//     firstDay = new Date(date.getFullYear(), date.getMonth() - 1, 15);
-//     lastDay = new Date(date.getFullYear(), date.getMonth(), 1);
-//   }
-//   const months = [
-//     "Jan",
-//     "Feb",
-//     "Mar",
-//     "Apr",
-//     "May",
-//     "Jun",
-//     "Jul",
-//     "Aug",
-//     "Sep",
-//     "Oct",
-//     "Nov",
-//     "Dec",
-//   ];
-//   const [year1, year2] = [firstDay.getFullYear(), lastDay.getFullYear()];
-//   const [month1, month2] = [
-//     months[firstDay.getMonth()],
-//     months[lastDay.getMonth()],
-//   ];
-//   const [day1, day2] = [firstDay.getDate(), lastDay.getDate()];
-//   const time1 = day1 + " " + month1 + " " + year1;
-//   const time2 = day2 + " " + month2 + " " + year2;
+    const [year1, year2] = [firstDay.getFullYear(), lastDay.getFullYear()];
+    const [month1, month2] = [
+      months[firstDay.getMonth()],
+      months[lastDay.getMonth()],
+    ];
+    const [day1, day2] = [firstDay.getDate(), lastDay.getDate()];
+    const time1 = day1 + " " + month1 + " " + year1;
+    const time2 = day2 + " " + month2 + " " + year2;
 
-//   const rankingListTitle = `${time1} - ${time2}`;
+    const rankingListTitle = `${time1} - ${time2}`;
 
-//   Quiz.aggregate(
-//     [
-//       {
-//         $match: {
-//           score: { $gt: 0 },
-//           updatedAt: { $gt: firstDay, $lt: lastDay },
-//         },
-//       },
-//       {
-//         $project: {
-//           createdAt: 1,
-//           updatedAt: 1,
-//           score: 1,
-//           takenBy: 1,
-//           duration: { $subtract: ["$updatedAt", "$createdAt"] },
-//         },
-//       },
-//       {
-//         $sort: { score: -1, duration: 1 },
-//       },
-//       {
-//         $group: {
-//           _id: { takenBy: "$takenBy" },
-//           score: { $max: "$score" },
-//           duration: { $first: "$duration" },
-//         },
-//       },
-//       {
-//         $lookup: {
-//           from: "users",
-//           localField: "_id.takenBy",
-//           foreignField: "_id",
-//           as: "user",
-//         },
-//       },
-//       {
-//         $sort: { score: -1, duration: 1 },
-//       },
-//     ],
-//     (err, result) => {
-//       const numDaysBetween = (d1, d2) => {
-//         var diff = Math.abs(d1.getTime() - d2.getTime());
-//         return diff / (1000 * 60 * 60 * 24);
-//       };
-//       let rankingList = [];
-//       result.forEach((obj) => {
-//         let minutes, seconds, data;
-//         if (obj.user[0].isWinner) {
-//           if (numDaysBetween(obj.user[0].updatedAt, lastDay) < 5) {
-//             minutes = Math.floor(obj.duration / 60000);
-//             seconds = ((obj.duration % 60000) / 1000).toFixed(0);
-//             if (seconds.length === 1) {
-//               seconds = `0${seconds}`;
-//             }
-//             data = {
-//               userId: obj.user[0]._id,
-//               fullName: obj.user[0].fullName,
-//               score: obj.score,
-//               duration: `${minutes}:${seconds}`,
-//             };
-//             rankingList.push(data);
-//           }
-//         } else {
-//           minutes = Math.floor(obj.duration / 60000);
-//           seconds = ((obj.duration % 60000) / 1000).toFixed(0);
-//           if (seconds.length === 1) {
-//             seconds = `0${seconds}`;
-//           }
-//           data = {
-//             userId: obj.user[0]._id,
-//             fullName: obj.user[0].fullName,
-//             score: obj.score,
-//             duration: `${minutes}:${seconds}`,
-//           };
-//           rankingList.push(data);
-//         }
-//       });
+    const result = await Quiz.aggregate([
+      {
+        $match: {
+          score: { $gt: 0 },
+          updatedAt: { $gt: firstDay, $lt: lastDay },
+        },
+      },
+      {
+        $project: {
+          createdAt: 1,
+          updatedAt: 1,
+          score: 1,
+          takenBy: 1,
+          duration: { $subtract: ["$updatedAt", "$createdAt"] },
+        },
+      },
+      {
+        $sort: { score: -1, duration: 1 },
+      },
+      {
+        $group: {
+          _id: { takenBy: "$takenBy" },
+          score: { $max: "$score" },
+          duration: { $first: "$duration" },
+        },
+      },
+      {
+        $lookup: {
+          from: "users",
+          localField: "_id.takenBy",
+          foreignField: "_id",
+          as: "user",
+        },
+      },
+      {
+        $sort: { score: -1, duration: 1 },
+      },
+    ]);
 
-//       res.json({
-//         rankingList: rankingList.slice(0, 10),
-//         rankingListTitle: rankingListTitle,
-//       });
-//     }
-//   );
-// };
+    const numDaysBetween = (d1, d2) => {
+      var diff = Math.abs(d1.getTime() - d2.getTime());
+      return diff / (1000 * 60 * 60 * 24);
+    };
+    let rankingList = [];
+    result.forEach((obj) => {
+      let minutes, seconds, data;
+      if (obj.user[0].isWinner) {
+        if (numDaysBetween(obj.user[0].updatedAt, lastDay) < 5) {
+          minutes = Math.floor(obj.duration / 60000);
+          seconds = ((obj.duration % 60000) / 1000).toFixed(0);
+          if (seconds.length === 1) {
+            seconds = `0${seconds}`;
+          }
+          data = {
+            userId: obj.user[0]._id,
+            fullName: obj.user[0].fullName,
+            score: obj.score,
+            duration: `${minutes}:${seconds}`,
+          };
+          rankingList.push(data);
+        }
+      } else {
+        minutes = Math.floor(obj.duration / 60000);
+        seconds = ((obj.duration % 60000) / 1000).toFixed(0);
+        if (seconds.length === 1) {
+          seconds = `0${seconds}`;
+        }
+        data = {
+          userId: obj.user[0]._id,
+          fullName: obj.user[0].fullName,
+          score: obj.score,
+          duration: `${minutes}:${seconds}`,
+        };
+        rankingList.push(data);
+      }
+    });
 
-// exports.getTheBestRecords = (req, res, next) => {
-//   Quiz.aggregate(
-//     [
-//       {
-//         $match: { score: { $gt: 0 } },
-//       },
-//       {
-//         $project: {
-//           createdAt: 1,
-//           updatedAt: 1,
-//           score: 1,
-//           takenBy: 1,
-//           duration: { $subtract: ["$updatedAt", "$createdAt"] },
-//         },
-//       },
-//       {
-//         $sort: { score: -1, duration: 1 },
-//       },
-//       {
-//         $group: {
-//           _id: { takenBy: "$takenBy" },
-//           score: { $max: "$score" },
-//           duration: { $first: "$duration" },
-//         },
-//       },
-//       {
-//         $lookup: {
-//           from: "users",
-//           localField: "_id.takenBy",
-//           foreignField: "_id",
-//           as: "user",
-//         },
-//       },
-//       {
-//         $sort: { score: -1, duration: 1 },
-//       },
-//     ],
-//     (err, result) => {
-//       const ranking = result.map((obj, i) => {
-//         let minutes = Math.floor(obj.duration / 60000);
-//         let seconds = (obj.duration % 60000) / 1000;
-//         if (seconds.toFixed(0).length === 1) {
-//           seconds = `0${seconds}`;
-//         }
-//         const data = {
-//           userId: obj.user[0]._id,
-//           fullName: obj.user[0].fullName,
-//           score: obj.score,
-//           duration: `${minutes}:${seconds}`,
-//         };
-//         return data;
-//       });
-//       res.json(ranking.slice(0, 10));
-//     }
-//   );
-// };
+    rankingLastMonth = {
+      rankingList: rankingList.slice(0, 10),
+      rankingListTitle: rankingListTitle,
+    };
+  } catch (error) {
+    console.log(error);
+    response.statusCode = 500;
+    response.body = {
+      message: error,
+    };
+    throw response;
+  }
+
+  let top10ranking;
+  try {
+    const result = await Quiz.aggregate([
+      {
+        $match: { score: { $gt: 0 } },
+      },
+      {
+        $project: {
+          createdAt: 1,
+          updatedAt: 1,
+          score: 1,
+          takenBy: 1,
+          duration: { $subtract: ["$updatedAt", "$createdAt"] },
+        },
+      },
+      {
+        $sort: { score: -1, duration: 1 },
+      },
+      {
+        $group: {
+          _id: { takenBy: "$takenBy" },
+          score: { $max: "$score" },
+          duration: { $first: "$duration" },
+        },
+      },
+      {
+        $lookup: {
+          from: "users",
+          localField: "_id.takenBy",
+          foreignField: "_id",
+          as: "user",
+        },
+      },
+      {
+        $sort: { score: -1, duration: 1 },
+      },
+    ]);
+
+    const ranking = result.map((obj, i) => {
+      let minutes = Math.floor(obj.duration / 60000);
+      let seconds = (obj.duration % 60000) / 1000;
+      if (seconds.toFixed(0).length === 1) {
+        seconds = `0${seconds}`;
+      }
+      const data = {
+        userId: obj.user[0]._id,
+        fullName: obj.user[0].fullName,
+        score: obj.score,
+        duration: `${minutes}:${seconds}`,
+      };
+      return data;
+    });
+    top10ranking = ranking.slice(0, 10);
+  } catch (error) {
+    console.log(error);
+    response.statusCode = 500;
+    response.body = {
+      message: error,
+    };
+    throw response;
+  }
+
+  // Today
+  let theBestToday;
+  try {
+    const today = new Date();
+    today.setHours(0);
+    today.setMinutes(0);
+    today.setSeconds(0);
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    tomorrow.setHours(0);
+    tomorrow.setMinutes(0);
+    tomorrow.setSeconds(0);
+
+    const result = await Quiz.aggregate([
+      {
+        $match: {
+          score: { $gt: 0 },
+          updatedAt: { $gte: today, $lt: tomorrow },
+        },
+      },
+      {
+        $project: {
+          createdAt: 1,
+          updatedAt: 1,
+          score: 1,
+          takenBy: 1,
+          duration: { $subtract: ["$updatedAt", "$createdAt"] },
+        },
+      },
+      {
+        $sort: { score: -1, duration: 1 },
+      },
+      {
+        $group: {
+          _id: { takenBy: "$takenBy" },
+          score: { $max: "$score" },
+          duration: { $first: "$duration" },
+        },
+      },
+      {
+        $lookup: {
+          from: "users",
+          localField: "_id.takenBy",
+          foreignField: "_id",
+          as: "user",
+        },
+      },
+      {
+        $sort: { score: -1, duration: 1 },
+      },
+    ]);
+    const ranking = result.map((obj, i) => {
+      let minutes = Math.floor(obj.duration / 60000);
+      let seconds = ((obj.duration % 60000) / 1000).toFixed(0);
+      if (seconds.length === 1) {
+        seconds = `0${seconds}`;
+      }
+      const data = {
+        fullName: obj.user[0].fullName,
+        score: obj.score,
+        duration: `${minutes}:${seconds}`,
+      };
+      return data;
+    });
+
+    theBestToday = ranking[0];
+  } catch (error) {
+    console.log(error);
+    response.statusCode = 500;
+    response.body = {
+      message: error,
+    };
+    throw response;
+  }
+
+  response.body = {
+    currentRankingList: {
+      rankingList: rankingList.slice(0, 20),
+      rankingListTitle: rankingListTitle,
+    },
+    rankingLastMonth,
+    top10ranking,
+    theBestToday,
+  };
+
+  return response;
+};
 
 // exports.getQuestionsByCondition = (req, res, next) => {
 //   let { condition, sortBy } = req.body;
