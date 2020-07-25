@@ -6,10 +6,12 @@ import {
     startQuiz,
     createQuizQuestions,
     addQuestion,
+    statistics,
 } from '../controllers/QuizController.ts'
 const router = new Router()
 
 router
+    .get('/statistics', statistics)
     .post('/create-quiz', createQuizQuestions)
     .post('/start/:quizId', startQuiz)
     .post('/question', addQuestion)

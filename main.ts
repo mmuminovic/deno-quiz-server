@@ -1,6 +1,7 @@
 import { Application } from 'https://deno.land/x/oak/mod.ts'
 import { oakCors } from 'https://deno.land/x/cors/mod.ts'
 import { config } from 'https://deno.land/x/dotenv/mod.ts'
+
 import router from './routes/normal.ts'
 // import protectedRouter from './routes/protected.ts'
 import notFound from './404.ts'
