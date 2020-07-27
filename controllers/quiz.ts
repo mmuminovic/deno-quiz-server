@@ -11,10 +11,10 @@ export const createQuizQuestions = async ({ request, response }: any) => {
     try {
         const result = await Question.find()
         let allQuestions = []
-        let pitanja1:any[]= [],
-            pitanja2:any[] = [],
-            pitanja3:any[] = []
-        result.forEach((item:any) => {
+        let pitanja1: any[] = [],
+            pitanja2: any[] = [],
+            pitanja3: any[] = []
+        result.forEach((item: any) => {
             if (item.points === 10) {
                 pitanja1.push(item)
             } else if (item.points === 15) {
@@ -22,8 +22,7 @@ export const createQuizQuestions = async ({ request, response }: any) => {
             } else if (item.points === 20) {
                 pitanja3.push(item)
             }
-        }) 
-        
+        })
 
         allQuestions = [
             ...shuffle(pitanja1).slice(0, 20),
@@ -175,7 +174,9 @@ export const startQuiz = async ({
         ].isAnsweredCorrectly = correct
         quiz.questions[quiz.questions.indexOf(questions[0])].isAnswered = true
 
-        const question:any = await Question.findOne({ _id: questions[0].question })
+        const question: any = await Question.findOne({
+            _id: questions[0].question,
+        })
         if (correct) {
             question.answeredCorrectly = question.answeredCorrectly + 1
         } else {
@@ -288,7 +289,7 @@ export const getMyScore = async ({
             },
         ])
 
-        const ranking = result.map((obj: any, i:number) => {
+        const ranking = result.map((obj: any, i: number) => {
             let minutes = Math.floor(obj.duration / 60000)
             let seconds = ((obj.duration % 60000) / 1000).toFixed(0)
             if (seconds.length === 1) {
@@ -329,7 +330,7 @@ export const getMyScore = async ({
             },
         ])
 
-        const topRecords = bestScores.map((obj: any, i:number) => {
+        const topRecords = bestScores.map((obj: any, i: number) => {
             let minutes = Math.floor(obj.duration / 60000)
             let seconds = ((obj.duration % 60000) / 1000).toFixed(0)
             if (seconds.length === 1) {
@@ -390,7 +391,7 @@ export const getMyScore = async ({
 
         let rankingLastMonth
         if (lastMonthScores.length !== 0) {
-            rankingLastMonth = lastMonthScores.map((obj: any, i:number) => {
+            rankingLastMonth = lastMonthScores.map((obj: any, i: number) => {
                 let minutes = Math.floor(obj.duration / 60000)
                 let seconds = ((obj.duration % 60000) / 1000).toFixed(0)
                 if (seconds.length === 1) {
@@ -501,7 +502,7 @@ export const getRankingList = async ({ response }: any) => {
     ])
 
     let rankingList: any[] = []
-    result.forEach((obj: any, i:number) => {
+    result.forEach((obj: any, i: number) => {
         if (!obj.user[0].isWinner) {
             let minutes = Math.floor(obj.duration / 60000)
             let seconds = ((obj.duration % 60000) / 1000).toFixed(0)
@@ -584,7 +585,7 @@ export const getRankingList = async ({ response }: any) => {
             return diff / (1000 * 60 * 60 * 24)
         }
         let rankingList: any[] = []
-        result.forEach((obj: any, i:number) => {
+        result.forEach((obj: any, i: number) => {
             let minutes, seconds, data
             if (obj.user[0].isWinner) {
                 if (numDaysBetween(obj.user[0].updatedAt, lastDay) < 5) {
@@ -668,7 +669,7 @@ export const getRankingList = async ({ response }: any) => {
             },
         ])
 
-        const ranking = result.map((obj: any, i:number) => {
+        const ranking = result.map((obj: any, i: number) => {
             let minutes = Math.floor(obj.duration / 60000)
             let seconds: number | string = (obj.duration % 60000) / 1000
             if (seconds.toFixed(0).length === 1) {
@@ -743,7 +744,7 @@ export const getRankingList = async ({ response }: any) => {
                 $sort: { score: -1, duration: 1 },
             },
         ])
-        const ranking = result.map((obj: any, i:number) => {
+        const ranking = result.map((obj: any, i: number) => {
             let minutes = Math.floor(obj.duration / 60000)
             let seconds = ((obj.duration % 60000) / 1000).toFixed(0)
             if (seconds.length === 1) {
@@ -836,7 +837,7 @@ export const editQustion = async ({
             response.status = 201
             response.body = result
         })
-        .catch((error:any) => {
+        .catch((error: any) => {
             response.status = 500
             response.body = {
                 error,
@@ -855,11 +856,11 @@ export const deleteQuestion = async ({
 }) => {
     const { questionId } = params
     Question.deleteOne({ _id: questionId })
-        .then((result:any) => {
+        .then((result: any) => {
             response.status = 201
             response.body = result
         })
-        .catch((error:any) => {
+        .catch((error: any) => {
             response.status = 500
             response.body = {
                 error,
@@ -901,7 +902,7 @@ export const mostActiveUsers = async ({ request, response }: any) => {
         ])
 
         let quizPlayed = 0
-        const users = games.map((obj: any, i:number) => {
+        const users = games.map((obj: any, i: number) => {
             quizPlayed = quizPlayed + obj.score
             const data = {
                 userId: obj._id.userId[0],
@@ -976,7 +977,7 @@ export const statistics = async ({ request, response }: any) => {
             datesOfGames: string[] = [],
             monthsAndYears: any[] = []
 
-        games.forEach((data:any) => {
+        games.forEach((data: any) => {
             quizPlayed = quizPlayed + data.score
             datesOfGames = [...datesOfGames, ...data.dates]
             monthsAndYears = [...monthsAndYears, ...data.playedInMonths]

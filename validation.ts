@@ -1,3 +1,14 @@
+import {
+    validate,
+    required,
+    isEmail,
+    lengthBetween,
+    maxLength,
+    isString,
+    flattenMessages,
+    match,
+} from 'https://deno.land/x/validasaur/mod.ts'
+
 export default {
     async questionValidation({ request, response }: any) {
         let errors = []
@@ -30,5 +41,51 @@ export default {
         }
 
         return value
+    },
+    async validateLogin({ request, response }: any) {
+        const { value } = await request.body()
+
+        const [passes, errors] = await validate(value, {
+            email: [required, isEmail, maxLength(250)],
+            password: [required, isString, lengthBetween(6, 50)],
+        })
+
+        if (passes) {
+            return true
+        } else {
+            const flattenErrors = flattenMessages(errors)
+            response.status = 422
+            response.body = {
+                flattenErrors,
+            }
+            return false
+        }
+    },
+    async validateSignUp({ request, response }: any) {
+        const { value } = await request.body()
+        const { password, confirmPassword } = value
+
+        const [passes, errors] = await validate(value, {
+            email: [required, isEmail, maxLength(250)],
+            password: [required, isString, lengthBetween(6, 50)],
+            confirmPassword: [
+                required,
+                isString,
+                lengthBetween(6, 50),
+                match(password),
+            ],
+            fullName: [required, isString, lengthBetween(2, 250)],
+        })
+
+        if (passes) {
+            return true
+        } else {
+            const flattenErrors = flattenMessages(errors)
+            response.status = 422
+            response.body = {
+                flattenErrors,
+            }
+            return false
+        }
     },
 }

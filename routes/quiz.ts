@@ -7,7 +7,7 @@ import {
     createQuizQuestions,
     addQuestion,
     statistics,
-} from '../controllers/QuizController.ts'
+} from '../controllers/quiz.ts'
 const router = new Router()
 
 router
