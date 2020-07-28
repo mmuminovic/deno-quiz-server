@@ -278,12 +278,6 @@ export const getMyScore = async ({
                     duration: { $subtract: ['$updatedAt', '$createdAt'] },
                 },
             },
-            // {
-            //     $group: { _id: { takenBy: "$takenBy" }, score: { $max: "$score" }, duration: { $min: "$duration" } }
-            // },
-            // {
-            //     $lookup: { from: 'users', localField: '_id.takenBy', foreignField: '_id', as: 'user' }
-            // },
             {
                 $sort: { score: -1, duration: 1 },
             },
@@ -319,12 +313,6 @@ export const getMyScore = async ({
                     duration: { $subtract: ['$updatedAt', '$createdAt'] },
                 },
             },
-            // {
-            //     $group: { _id: { takenBy: "$takenBy" }, score: { $max: "$score" }, duration: { $min: "$duration" } }
-            // },
-            // {
-            //     $lookup: { from: 'users', localField: '_id.takenBy', foreignField: '_id', as: 'user' }
-            // },
             {
                 $sort: { score: -1, duration: 1 },
             },
@@ -378,12 +366,6 @@ export const getMyScore = async ({
                     duration: { $subtract: ['$updatedAt', '$createdAt'] },
                 },
             },
-            // {
-            //     $group: { _id: { takenBy: "$takenBy" }, score: { $max: "$score" }, duration: { $min: "$duration" } }
-            // },
-            // {
-            //     $lookup: { from: 'users', localField: '_id.takenBy', foreignField: '_id', as: 'user' }
-            // },
             {
                 $sort: { score: -1, duration: 1 },
             },
@@ -419,7 +401,6 @@ export const getMyScore = async ({
         }
         return response
     } catch (error) {
-        console.log(error)
         response.statusCode = 500
         response.body = {
             message: error,
@@ -462,6 +443,7 @@ export const getRankingList = async ({ response }: any) => {
 
     const rankingListTitle = `${time1} - ${time2}`
 
+    // Ranking list
     const result = await Quiz.aggregate([
         {
             $match: {
@@ -623,7 +605,6 @@ export const getRankingList = async ({ response }: any) => {
             rankingListTitle: rankingListTitle,
         }
     } catch (error) {
-        console.log(error)
         response.statusCode = 500
         response.body = {
             message: error,
@@ -683,9 +664,9 @@ export const getRankingList = async ({ response }: any) => {
             }
             return data
         })
+
         top10ranking = ranking.slice(0, 10)
     } catch (error) {
-        console.log(error)
         response.statusCode = 500
         response.body = {
             message: error,
@@ -760,7 +741,6 @@ export const getRankingList = async ({ response }: any) => {
 
         theBestToday = ranking[0]
     } catch (error) {
-        console.log(error)
         response.statusCode = 500
         response.body = {
             message: error,
@@ -771,7 +751,7 @@ export const getRankingList = async ({ response }: any) => {
     response.body = {
         currentRankingList: {
             rankingList: rankingList.slice(0, 20),
-            rankingListTitle: rankingListTitle,
+            rankingListTitle,
         },
         rankingLastMonth,
         top10ranking,
@@ -780,15 +760,6 @@ export const getRankingList = async ({ response }: any) => {
 
     return response
 }
-
-// exports.getQuestionsByCondition = (req, res, next) => {
-//   let { condition, sortBy } = req.body;
-//   Question.find(condition)
-//     .sort([[sortBy, -1]])
-//     .then((result) => {
-//       res.json(result);
-//     });
-// };
 
 export const addQuestion = async ({ request, response }: any) => {
     // validation
@@ -985,14 +956,34 @@ export const statistics = async ({ request, response }: any) => {
 
         let statisticsPerYears: any = {}
 
-        monthsAndYears.forEach((e) => {
-            console.log(statisticsPerYears[e.year[e.month]])
-            statisticsPerYears[e.year] = {
-                ...statisticsPerYears[e.year],
-                [e.month]:
-                    statisticsPerYears[e.year[e.month]] > 0
-                        ? statisticsPerYears[e.year[e.month]] + 1
-                        : 1,
+        let years = monthsAndYears.map((e) => e.year)
+        years = years.filter((year, i) => years.indexOf(year) === i)
+        console.log(years)
+        let stats: any = {}
+        years.forEach((year) => {
+            Object.assign(stats, {
+                [year]: {
+                    0: 0,
+                    1: 0,
+                    2: 0,
+                    3: 0,
+                    4: 0,
+                    5: 0,
+                    6: 0,
+                    7: 0,
+                    8: 0,
+                    9: 0,
+                    10: 0,
+                    11: 0,
+                    12: 0,
+                },
+            })
+        })
+        monthsAndYears.forEach((data: any) => {
+            let year = stats[data.year]
+            stats[data.year] = {
+                ...stats[data.year],
+                [data.month]: year[data.month] + 1,
             }
         })
 
@@ -1008,16 +999,12 @@ export const statistics = async ({ request, response }: any) => {
 
         quizPlayed = quizPlayed + 49918 // Because I deleted 49918 quizzes from db
 
-        // dateOfGames.forEach(e => {
-        //     if()
-        // })
-
         // Response
         response.body = {
             quizPlayed,
             activeGames,
             playedToday,
-            statisticsPerYears,
+            stats,
         }
     } catch (error) {
         console.log({ ...error })
@@ -1025,64 +1012,3 @@ export const statistics = async ({ request, response }: any) => {
         response.body = error
     }
 }
-
-// const active = await Quiz.aggregate([
-//     {
-//         $match: { createdAt: { $gt: time }, active: true },
-//     },
-//     {
-//         $project: { _id: 1, takenBy: 1, score: 1 },
-//     },
-//     {
-//         $lookup: {
-//             from: 'users',
-//             localField: 'takenBy',
-//             foreignField: '_id',
-//             as: 'user',
-//         },
-//     },
-//     {
-//         $group: {
-//             _id: { userId: '$user._id', fullName: '$user.fullName' },
-//             score: { $sum: 1 },
-//         },
-//     },
-//     { $sort: { score: -1 } },
-// ])
-
-// let activeGames = 0
-// active.forEach((obj) => {
-//     activeGames = activeGames + obj.score
-// })
-
-// const todayGames = await Quiz.aggregate([
-//     {
-//         $match: {
-//             createdAt: { $gt: today },
-//             updatedAt: { $lt: tomorrow },
-//         },
-//     },
-//     {
-//         $project: { _id: 1, takenBy: 1, score: 1 },
-//     },
-//     {
-//         $lookup: {
-//             from: 'users',
-//             localField: 'takenBy',
-//             foreignField: '_id',
-//             as: 'user',
-//         },
-//     },
-//     {
-//         $group: {
-//             _id: { userId: '$user._id', fullName: '$user.fullName' },
-//             score: { $sum: 1 },
-//         },
-//     },
-//     { $sort: { score: -1 } },
-// ])
-
-// let todayPlayed = 0
-// todayGames.forEach((obj) => {
-//     todayPlayed = todayPlayed + obj.score
-// })

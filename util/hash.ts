@@ -1,12 +1,12 @@
-import { hash, compare } from 'https://deno.land/x/bcrypt/mod.ts'
+import { hash, compare } from 'https://deno.land/x/bcrypt@v0.2.3/mod.ts'
 
 export default {
-    bcrypt: (stringToHash: string): Promise<any> => {
-        const hashedPw = hash(stringToHash)
+    bcrypt: async (stringToHash: string): Promise<any> => {
+        const hashedPw = await hash(stringToHash)
         return hashedPw
     },
-    verify: (hashedPw: string, text: string): Promise<boolean> => {
-        const result = compare(text, hashedPw)
+    verify: async (hashedPw: string, text: string): Promise<boolean> => {
+        const result = await compare(text, hashedPw)
         return result
     },
 }

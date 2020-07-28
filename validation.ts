@@ -44,8 +44,9 @@ export default {
     },
     async validateLogin({ request, response }: any) {
         const { value } = await request.body()
+        const credentials = await value
 
-        const [passes, errors] = await validate(value, {
+        const [passes, errors] = await validate(credentials, {
             email: [required, isEmail, maxLength(250)],
             password: [required, isString, lengthBetween(6, 50)],
         })
@@ -53,26 +54,25 @@ export default {
         if (passes) {
             return true
         } else {
-            const flattenErrors = flattenMessages(errors)
             response.status = 422
             response.body = {
-                flattenErrors,
+                errors,
             }
             return false
         }
     },
     async validateSignUp({ request, response }: any) {
         const { value } = await request.body()
-        const { password, confirmPassword } = value
+        const credentials = await value
 
-        const [passes, errors] = await validate(value, {
+        const [passes, errors] = await validate(credentials, {
             email: [required, isEmail, maxLength(250)],
             password: [required, isString, lengthBetween(6, 50)],
             confirmPassword: [
                 required,
                 isString,
                 lengthBetween(6, 50),
-                match(password),
+                match(credentials.password),
             ],
             fullName: [required, isString, lengthBetween(2, 250)],
         })
@@ -80,10 +80,9 @@ export default {
         if (passes) {
             return true
         } else {
-            const flattenErrors = flattenMessages(errors)
             response.status = 422
             response.body = {
-                flattenErrors,
+                errors,
             }
             return false
         }

@@ -2,6 +2,7 @@ import db from '../config/databases.ts'
 import validation from '../validation.ts'
 import hash from '../util/hash.ts'
 import token from '../util/token.ts'
+
 // env
 import { config } from 'https://deno.land/x/dotenv/mod.ts'
 const env = config()
@@ -19,48 +20,40 @@ export const login = async ({ request, response }: any) => {
         return
     }
     const reqBody = await request.body()
-    const { email, password } = reqBody.value
-    User.findOne({ email: email })
-        .then((user: any) => {
-            if (!user) {
-                response.status = 422
-                response.body = {
-                    message: 'Neispravan email ili šifra',
-                }
-                return
-            }
-            const comparationResult = hash.verify(password, user.password)
-            if (!comparationResult) {
-                response.status = 422
-                response.body = {
-                    message: 'Neispravan email ili šifra',
-                }
-                return
-            }
-            if (comparationResult) {
-                const generatedToken = token.generate(user)
-                response.status = 200
-                response.body = {
-                    success: 'Prijava uspešna!',
-                    token: token,
-                    userId: user._id.toString(),
-                }
-                return
-            } else {
-                response.status = 422
-                response.body = {
-                    message: 'Neispravan email ili šifra',
-                }
-                return
-            }
-        })
-        .catch((error) => {
-            response.status = 500
+    const { value } = await reqBody
+    const { email, password } = await value
+    try {
+        const user: any = await User.findOne({ email: email })
+        if (!user) {
+            response.status = 422
             response.body = {
-                error,
+                message: 'Neispravan email ili šifra',
             }
             return
-        })
+        }
+        const comparationResult = await hash.verify(user.password, password)
+        if (!comparationResult) {
+            response.status = 422
+            response.body = {
+                message: 'Neispravan email ili šifra',
+            }
+            return
+        }
+
+        const generatedToken = await token.generate(user)
+        console.log(generatedToken, 'token')
+        response.status = 200
+        response.body = {
+            success: 'Prijava uspješna!',
+            token: generatedToken,
+            userId: user._id.$oid,
+        }
+    } catch (error) {
+        response.status = 500
+        response.body = {
+            error,
+        }
+    }
 }
 
 // Signup
@@ -73,23 +66,38 @@ export const signup = async ({ request, response }: any) => {
         return
     }
     const reqBody = await request.body()
-    const { email, password, fullName, isAdmin: myKey } = reqBody.value
+    const { value } = await reqBody
+    const { email, password, fullName, isAdmin: myKey } = await value
     let isAdmin = false
     if (myKey === `${adminKey}`) {
         isAdmin = true
     }
-    const hashedPw = hash.bcrypt(password)
+    const hashedPw = await hash.bcrypt(password)
     try {
+        const dbUser = await User.findOne({ email: email })
+        if (dbUser) {
+            response.status = 403
+            response.body = {
+                error: 'Uneta email adresa je zauzeta.',
+            }
+            return
+        }
         const user: any = await User.insertOne({
             email,
             password: hashedPw,
             fullName,
             isAdmin,
         })
+        console.log(user)
         response.status = 201
         response.body = {
             message: 'Registracija uspješna!',
-            user: user._id,
+            user: user.$oid,
         }
-    } catch (error) {}
+    } catch (error) {
+        response.status = 500
+        response.body = {
+            error,
+        }
+    }
 }

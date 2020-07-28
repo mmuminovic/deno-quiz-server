@@ -12,7 +12,7 @@ import {
 
 import { config } from 'https://deno.land/x/dotenv/mod.ts'
 const env = config()
-const key = env.JWT_KEY
+const key = `${env.JWT_KEY}`
 
 const header: Jose = {
     alg: 'HS256',

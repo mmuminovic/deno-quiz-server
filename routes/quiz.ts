@@ -7,11 +7,13 @@ import {
     createQuizQuestions,
     addQuestion,
     statistics,
+    getRankingList,
 } from '../controllers/quiz.ts'
 const router = new Router()
 
 router
     .get('/statistics', statistics)
+    .get('/ranking', getRankingList)
     .post('/create-quiz', createQuizQuestions)
     .post('/start/:quizId', startQuiz)
     .post('/question', addQuestion)
